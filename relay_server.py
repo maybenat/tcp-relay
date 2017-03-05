@@ -26,7 +26,7 @@ class relay_server:
             echo_port = self.echo_port_list[len(self.echo_port_list)-1]
             self.echo_port_list.append(echo_port)
         #configure and send back the message to the echo socket
-        echo_message = 'HOST: '+ host + ' PORT: ' + str(echo_port)
+        echo_message = 'established relay address: '+ host + ':' + str(echo_port)
         echo_sock.send(echo_message)
 
         #now we are handing client connections to echo_port
