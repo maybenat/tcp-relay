@@ -6,34 +6,44 @@ class relay_server:
     def __init__(self, host, port):
         self.relay_sock = new_socket(host, port)
         self.echo_port_list = []
+        self.current_echo = 0
 
     #Run the main loop to listen for incoming connections
     #On accept start a new thread and handle the echo socket connection
     def run_loop(self):
-        while 1:
+        while True:
             echo_sock, echo_addr = self.relay_sock.accept()
-            thread.start_new_thread(self.on_accept, (echo_sock, host, port))
+            condition = echo_sock.recv(24)
+            if condition == 'echo':
+                new_echo = True
+            else:
+                new_echo = False
+            thread.start_new_thread(self.on_accept, (echo_sock, host, port, new_echo))
 
     #When a new echo socket connection has been made
-    def on_accept(self, echo_sock, host, port):
-        #Configure the correct host & port to be sent back to the echo socket connection
-        #If this is the first connection increment current port by 1 and append to port list
-        if len(self.echo_port_list) < 1:
-            echo_port = port + 1
-            self.echo_port_list.append(echo_port)
-        #Otherwise increment last port in the list by one and append
+    def on_accept(self, echo_sock, host, port, new_echo):
+        if new_echo:
+            if len(self.echo_port_list) < 1:
+                echo_port = port + 1
+                self.echo_port_list.append(echo_port)
+
+            #Otherwise increment last port in the list by one and append
+            else:
+                echo_port = self.echo_port_list[len(self.echo_port_list)-1]+1
+                self.echo_port_list.append(echo_port)
+            echo_message = 'established relay address: '+ host + ':' + str(echo_port)
+            echo_sock.send(echo_message)
+
         else:
             echo_port = self.echo_port_list[len(self.echo_port_list)-1]
-            self.echo_port_list.append(echo_port)
-        #configure and send back the message to the echo socket
-        echo_message = 'established relay address: '+ host + ':' + str(echo_port)
-        echo_sock.send(echo_message)
-
-        #now we are handing client connections to echo_port
-        client_sock = new_socket(host, echo_port)
-        client_sock, client_addr = client_sock.accept()
-
-        #Run a loop to listen for connections
+        try:
+            client_sock = new_socket(host, echo_port)
+            client_sock, client_addr = client_sock.accept()
+            thread.start_new_thread(self.handle_client, (client_sock, echo_sock, host, echo_port))
+        except:
+            print "Threading error"
+    def handle_client(self, client_sock, echo_sock, host, port):
+        echo_sock.send('new_client')
         listening = True
         while listening:
             #Recieve 4096 bytes of data from the client
@@ -48,6 +58,7 @@ class relay_server:
         #Close the echo socket and the client socket connections
         echo_sock.close()
         client_sock.close()
+
 
 #Helper method to create a new socket
 def new_socket(host, port):

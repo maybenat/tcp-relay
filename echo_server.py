@@ -5,17 +5,20 @@ class echo_server:
     #Create an echo socket
     def __init__(self, host, port):
         self.echo_sock = new_socket(host, port)
-
+        self.echo_sock.send('echo')
     #Run the main loop.
     #Listen for data, upon receive either forward it back up through the
     #echo server & print client data otherwise close the socket on error
     def run_loop(self):
         listening = True
         while listening:
-            client_data = self.echo_sock.recv(4096)
-            if client_data is not None:
-                self.echo_sock.send(client_data)
-                print client_data
+            data = self.echo_sock.recv(4096)
+            if data is not None:
+                self.echo_sock.send(data)
+                if data == 'new_client':
+                    self.echo_sock = new_socket(host, port)
+                    self.echo_sock.send('client')
+                print data
             else:
                 listening = False
         self.echo_sock.close()
